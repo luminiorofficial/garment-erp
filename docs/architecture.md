@@ -48,11 +48,45 @@ never a directly-editable `current_stock` field — it is always derived from
 under `apps/api` and is why the database owns explicit `*_transactions`,
 `*_movements`, and `audit_logs` tables rather than mutable balance columns.
 
+## apps/api structure
+
+```
+apps/api/src/
+  modules/<name>/<name>.routes.ts       HTTP layer (Hono routers)
+                 <name>.service.ts      business logic, transactions, audit writes
+                 <name>.repository.ts   Drizzle queries only
+  middleware/    requireAuthenticatedUser, requirePermission, error handler
+  lib/           password hashing, session tokens, audit helper, ApiError
+  db/schema/     one file per domain area — see docs/decisions/003-database-ownership.md
+  db/migrations/ drizzle-kit generated SQL — the source of truth for the schema
+  db/seed.ts     idempotent bootstrap: roles, permissions, optional admin user
+```
+
+Layering is HTTP → application/service (transactions + audit) → persistence
+(repository) — no additional abstraction layers. Authorization
+(`requirePermission`) is middleware, never hand-rolled per-route.
+
+## Authentication & RBAC foundation
+
+Implemented: `users`, `roles`, `permissions`, `user_roles`, `role_permissions`,
+`sessions`, `security_events`, `audit_logs`. Argon2id password hashing,
+server-side sessions via an httpOnly cookie (not JWT), `resource.action`
+permission codes (e.g. `users.assign_role`). See
+[004-authentication-strategy](decisions/004-authentication-strategy.md),
+[005-primary-key-strategy](decisions/005-primary-key-strategy.md), and
+[006-rbac-model](decisions/006-rbac-model.md) for the reasoning, including
+why organization/factory scoping was deliberately deferred rather than
+built now.
+
+`apps/web` has the minimum frontend needed to prove this works end to end:
+`/login` and `/dashboard` (shows the current user's roles/permissions from
+`GET /api/auth/me`). No admin UI yet — user/role/permission management is
+API-only until a module actually needs a UI for it.
+
 ## Status
 
-This is architecture only — no ERP modules (orders, inventory, BOM, purchase,
-production, QC, packing, ...) are implemented yet. `apps/api` currently
-exposes a single `/health` endpoint that verifies Postgres connectivity, to
-prove the wiring works end to end before any domain code is written.
+Users/roles/permissions foundation is implemented. No ERP operational
+modules (orders, inventory, BOM, purchase, production, QC, packing, ...)
+exist yet.
 
 See [docs/decisions](decisions/) for the reasoning behind the major choices.

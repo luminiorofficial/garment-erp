@@ -9,26 +9,31 @@
     "start": "node --env-file-if-exists=.env dist/index.js",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx --env-file-if-exists=.env src/db/seed.ts"
   },
   "dependencies": {
     "@garment-erp/shared": "workspace:*",
     "@garment-erp/validation": "workspace:*",
     "@hono/node-server": "^1",
-    "drizzle-orm": "^0.36",
+    "argon2": "^0.41",
+    "drizzle-orm": "^0.45",
     "hono": "^4",
-    "pg": "^8"
+    "pg": "^8",
+    "zod": "^4"
   },
   "devDependencies": {
     "@eslint/js": "^9",
     "@garment-erp/config": "workspace:*",
     "@types/node": "^20",
     "@types/pg": "^8",
-    "drizzle-kit": "^0.28",
+    "drizzle-kit": "^0.31",
     "eslint": "^9",
     "tsx": "^4",
     "typescript": "^5",
-    "typescript-eslint": "^8"
+    "typescript-eslint": "^8",
+    "vitest": "^2"
   }
 }
