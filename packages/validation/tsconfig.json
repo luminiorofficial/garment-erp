@@ -1,0 +1,7 @@
+{
+  "extends": "@garment-erp/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src"]
+}

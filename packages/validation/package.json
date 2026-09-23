@@ -1,0 +1,18 @@
+{
+  "name": "@garment-erp/validation",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@garment-erp/shared": "workspace:*",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@garment-erp/config": "workspace:*",
+    "typescript": "^5"
+  }
+}
