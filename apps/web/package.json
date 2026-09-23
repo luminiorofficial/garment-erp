@@ -10,11 +10,12 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@garment-erp/shared": "workspace:*",
+    "@garment-erp/validation": "workspace:*",
+    "@tanstack/react-query": "^5.103.2",
     "next": "16.3.6",
     "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "@garment-erp/shared": "workspace:*",
-    "@garment-erp/validation": "workspace:*"
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@garment-erp/config": "workspace:*",

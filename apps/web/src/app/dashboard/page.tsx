@@ -1,45 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ApiClientError, apiFetch } from "@/lib/api";
-
-interface CurrentUser {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  roles: string[];
-  permissions: string[];
-}
+import { useAuth } from "@/providers/auth-provider";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<CurrentUser | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { user, isLoading, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
-    apiFetch<CurrentUser>("/api/auth/me")
-      .then(setUser)
-      .catch((err) => {
-        if (err instanceof ApiClientError && err.status === 401) {
-          router.push("/login");
-          return;
-        }
-        setError("Could not load the current user");
-      });
-  }, [router]);
+    if (!isLoading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isLoading, isAuthenticated, router]);
 
   async function handleLogout() {
-    await apiFetch("/api/auth/logout", { method: "POST" });
+    await logout();
     router.push("/login");
   }
 
-  if (error) {
-    return <p className="p-8 text-red-600 dark:text-red-400">{error}</p>;
-  }
-
-  if (!user) {
+  if (isLoading || !user) {
     return <p className="p-8 text-zinc-600 dark:text-zinc-400">Loading...</p>;
   }
 

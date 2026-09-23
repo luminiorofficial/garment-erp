@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ApiClientError, apiFetch } from "@/lib/api";
+import { ApiClientError } from "@/lib/api";
+import { login } from "@/features/auth/api";
+import { useAuth } from "@/providers/auth-provider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,10 +20,8 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await apiFetch("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+      await login({ email, password });
+      await refreshUser();
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : "Login failed");
