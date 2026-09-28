@@ -388,4 +388,104 @@ describe.skipIf(!dbAvailable)("supplier master integration", () => {
       "supplier_contact.updated",
     ]);
   });
+
+  it("reactivates a deactivated supplier and audits it as supplier.activated", async () => {
+    // Uses its own supplier so it doesn't depend on (or disturb) the state
+    // left by the deactivation test above.
+    const create = await app.request(
+      "/api/suppliers",
+      jsonRequest(managerCookie, "POST", { code: `${CODE_PREFIX}-REACT`, name: "Reactivate Co" })
+    );
+    expect(create.status).toBe(201);
+    const { id } = (await create.json()) as SupplierBody;
+
+    const deactivate = await app.request(
+      `/api/suppliers/${id}`,
+      jsonRequest(managerCookie, "PATCH", { isActive: false })
+    );
+    expect(deactivate.status).toBe(200);
+    expect(((await deactivate.json()) as SupplierBody).isActive).toBe(false);
+
+    const reactivate = await app.request(
+      `/api/suppliers/${id}`,
+      jsonRequest(managerCookie, "PATCH", { isActive: true })
+    );
+    expect(reactivate.status).toBe(200);
+    const reactivated = (await reactivate.json()) as SupplierBody;
+    expect(reactivated.isActive).toBe(true);
+    expect(reactivated.updatedBy).toBe(managerId);
+
+    const [stored] = await db.select().from(suppliers).where(eq(suppliers.id, id));
+    expect(stored?.isActive).toBe(true);
+
+    const entries = await db
+      .select()
+      .from(auditLogs)
+      .where(and(eq(auditLogs.entityType, "supplier"), eq(auditLogs.entityId, id)));
+    expect(entries.map((entry) => entry.action).sort()).toEqual([
+      "supplier.activated",
+      "supplier.created",
+      "supplier.deactivated",
+    ]);
+    const activated = entries.find((entry) => entry.action === "supplier.activated");
+    expect(activated?.userId).toBe(managerId);
+    expect(activated?.oldValue).toEqual({ isActive: false });
+    expect(activated?.newValue).toEqual({ isActive: true });
+  });
+
+  it("paginates the supplier list with page and pageSize", async () => {
+    const pagePrefix = `${CODE_PREFIX}-PG`;
+    const createdIds: string[] = [];
+    for (const suffix of ["A", "B", "C"]) {
+      const res = await app.request(
+        "/api/suppliers",
+        jsonRequest(managerCookie, "POST", {
+          code: `${pagePrefix}-${suffix}`,
+          name: `Pagination Supplier ${suffix}`,
+        })
+      );
+      expect(res.status).toBe(201);
+      createdIds.push(((await res.json()) as SupplierBody).id);
+    }
+
+    interface PageBody {
+      items: SupplierBody[];
+      page: number;
+      pageSize: number;
+    }
+    async function fetchPage(query: string): Promise<PageBody> {
+      const res = await app.request(`/api/suppliers?${query}`, {
+        headers: { cookie: managerCookie },
+      });
+      expect(res.status).toBe(200);
+      return (await res.json()) as PageBody;
+    }
+
+    // Scoped to this test's rows so the expected order is exact (list is
+    // ordered by code ascending).
+    const scope = `search=${encodeURIComponent(pagePrefix)}`;
+    const page1 = await fetchPage(`${scope}&page=1&pageSize=1`);
+    const page2 = await fetchPage(`${scope}&page=2&pageSize=1`);
+    const page3 = await fetchPage(`${scope}&page=3&pageSize=1`);
+    const page4 = await fetchPage(`${scope}&page=4&pageSize=1`);
+
+    expect(Object.keys(page1).sort()).toEqual(["items", "page", "pageSize"]);
+    expect(page1.page).toBe(1);
+    expect(page1.pageSize).toBe(1);
+    expect(page2.page).toBe(2);
+    expect(page2.pageSize).toBe(1);
+
+    expect(page1.items.map((s) => s.id)).toEqual([createdIds[0]]);
+    expect(page2.items.map((s) => s.id)).toEqual([createdIds[1]]);
+    expect(page3.items.map((s) => s.id)).toEqual([createdIds[2]]);
+    expect(page4.items).toEqual([]);
+
+    // Unfiltered too: at least these three rows exist, so pages 1 and 2 must
+    // hold different suppliers.
+    const unscoped1 = await fetchPage("page=1&pageSize=1");
+    const unscoped2 = await fetchPage("page=2&pageSize=1");
+    expect(unscoped1.items).toHaveLength(1);
+    expect(unscoped2.items).toHaveLength(1);
+    expect(unscoped1.items[0]?.id).not.toBe(unscoped2.items[0]?.id);
+  });
 });

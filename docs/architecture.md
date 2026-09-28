@@ -88,8 +88,9 @@ API-only until a module actually needs a UI for it.
 Users/roles/permissions foundation is implemented. Customer master
 (`customers`, `customer_contacts`; API-only, deactivate via `isActive`, no
 DELETE) is implemented. Supplier master (`suppliers`, `supplier_contacts`;
-same conventions, plus `leadTimeDays` and a 1–5 `rating`) is implemented.
-No other ERP modules (orders, inventory, BOM, purchase orders, production,
+same conventions, plus `leadTimeDays` and a 1–5 `rating`) is implemented
+and verified against PostgreSQL (migration applied, DB constraints checked,
+integration suite run against a live database). No other ERP modules (orders, inventory, BOM, purchase orders, production,
 QC, packing, ...) exist yet.
 
 See [docs/decisions](decisions/) for the reasoning behind the major choices.

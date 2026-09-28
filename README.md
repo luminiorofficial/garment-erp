@@ -56,7 +56,14 @@ docs            Architecture docs and ADRs
 scripts         Repo-wide automation
 ```
 
-Users/roles/permissions (authentication + RBAC) are implemented — see
-[docs/architecture.md](docs/architecture.md). No ERP operational modules
-(orders, inventory, BOM, purchasing, production, QC, packing, dispatch, ...)
-are implemented yet.
+Status (see [docs/architecture.md](docs/architecture.md)):
+
+| Area                                   | Status                                  |
+| -------------------------------------- | --------------------------------------- |
+| Auth / RBAC (users, roles, permissions) | implemented                            |
+| Customer Master                        | implemented                             |
+| Supplier Master                        | implemented and PostgreSQL verified     |
+| Other ERP modules (orders, inventory, BOM, purchase orders, production, QC, packing, dispatch, ...) | not implemented |
+
+The API integration tests read `DATABASE_URL` from `apps/api/.env` (or the
+environment) and skip themselves if that database is unreachable.
