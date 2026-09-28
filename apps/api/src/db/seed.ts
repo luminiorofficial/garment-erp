@@ -39,6 +39,9 @@ const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   [PermissionCode.ROLES_EDIT]: "Edit roles",
   [PermissionCode.ROLES_ASSIGN_PERMISSION]: "Assign/remove a role's permissions",
   [PermissionCode.PERMISSIONS_VIEW]: "View permissions",
+  [PermissionCode.CUSTOMERS_VIEW]: "View customers and their contacts",
+  [PermissionCode.CUSTOMERS_CREATE]: "Create customers and customer contacts",
+  [PermissionCode.CUSTOMERS_EDIT]: "Edit/deactivate customers and edit customer contacts",
 };
 
 async function seedRoles() {

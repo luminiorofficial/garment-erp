@@ -5,3 +5,4 @@ export * from "./users.js";
 export * from "./roles.js";
 export * from "./auth.js";
 export * from "./audit.js";
+export * from "./customers.js";

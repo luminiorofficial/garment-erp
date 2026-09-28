@@ -12,3 +12,7 @@ export const paginationQuerySchema = z.object({
 });
 
 export type PaginationQuery = z.infer<typeof paginationQuerySchema>;
+
+// Path params like `/:id` — rejects malformed ids before they reach a
+// Postgres uuid column (which would otherwise surface as a 500).
+export const uuidParamSchema = z.string().uuid("Invalid id");

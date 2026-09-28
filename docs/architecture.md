@@ -85,7 +85,9 @@ API-only until a module actually needs a UI for it.
 
 ## Status
 
-Users/roles/permissions foundation is implemented. No ERP operational
+Users/roles/permissions foundation is implemented. Customer master
+(`customers`, `customer_contacts`; API-only, deactivate via `isActive`, no
+DELETE) is implemented. No other ERP
 modules (orders, inventory, BOM, purchase, production, QC, packing, ...)
 exist yet.
 

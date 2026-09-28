@@ -22,6 +22,10 @@ export const PermissionCode = {
   ROLES_ASSIGN_PERMISSION: "roles.assign_permission",
 
   PERMISSIONS_VIEW: "permissions.view",
+
+  CUSTOMERS_VIEW: "customers.view",
+  CUSTOMERS_CREATE: "customers.create",
+  CUSTOMERS_EDIT: "customers.edit",
 } as const;
 
 export type PermissionCode = (typeof PermissionCode)[keyof typeof PermissionCode];
