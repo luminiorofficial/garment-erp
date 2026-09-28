@@ -45,6 +45,9 @@ const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   [PermissionCode.SUPPLIERS_VIEW]: "View suppliers and their contacts",
   [PermissionCode.SUPPLIERS_CREATE]: "Create suppliers and supplier contacts",
   [PermissionCode.SUPPLIERS_EDIT]: "Edit/deactivate suppliers and edit supplier contacts",
+  [PermissionCode.JOB_WORKERS_VIEW]: "View job workers",
+  [PermissionCode.JOB_WORKERS_CREATE]: "Create job workers",
+  [PermissionCode.JOB_WORKERS_EDIT]: "Edit/deactivate job workers",
 };
 
 async function seedRoles() {

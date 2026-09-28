@@ -58,12 +58,17 @@ scripts         Repo-wide automation
 
 Status (see [docs/architecture.md](docs/architecture.md)):
 
-| Area                                   | Status                                  |
-| -------------------------------------- | --------------------------------------- |
-| Auth / RBAC (users, roles, permissions) | implemented                            |
-| Customer Master                        | implemented                             |
-| Supplier Master                        | implemented and PostgreSQL verified     |
-| Other ERP modules (orders, inventory, BOM, purchase orders, production, QC, packing, dispatch, ...) | not implemented |
+| Area                                                   | Status                              |
+| ------------------------------------------------------ | ----------------------------------- |
+| Auth / RBAC (users, roles, permissions)                | ✅ implemented                      |
+| Customer Master                                        | ✅ implemented                      |
+| Supplier Master                                        | ✅ implemented, PostgreSQL verified |
+| Job Worker Master                                      | ✅ implemented, PostgreSQL verified |
+| Job Work operations (orders, issue/receipt, reconciliation) | ❌ not implemented             |
+| Other masters (process, unit, item/fabric, style, ...) | ❌ not implemented                  |
+| Orders                                                 | ❌ not implemented                  |
+| Inventory                                              | ❌ not implemented                  |
+| Production (planning, cutting, WIP, QC, packing, dispatch) | ❌ not implemented              |
 
 The API integration tests read `DATABASE_URL` from `apps/api/.env` (or the
 environment) and skip themselves if that database is unreachable.

@@ -90,7 +90,32 @@ Users/roles/permissions foundation is implemented. Customer master
 DELETE) is implemented. Supplier master (`suppliers`, `supplier_contacts`;
 same conventions, plus `leadTimeDays` and a 1–5 `rating`) is implemented
 and verified against PostgreSQL (migration applied, DB constraints checked,
-integration suite run against a live database). No other ERP modules (orders, inventory, BOM, purchase orders, production,
-QC, packing, ...) exist yet.
+integration suite run against a live database).
+
+Job worker master (`job_workers`; same conventions, verified against
+PostgreSQL) is implemented. It is master data only — job work operations
+(job work orders, bundle issue/receipt, reconciliation) are not built yet.
+Deliberate interim choices, documented in
+`apps/api/src/db/schema/job-workers.ts`:
+
+- `process` and `capacity_unit` are normalized uppercase free-text codes
+  (no enum), until Process and Unit masters exist and can replace them with
+  foreign keys.
+- `rate_agreement` is a free-text summary; structured job work rates belong
+  to the future job work module.
+- Contact details are columns on the row; there is no `job_worker_contacts`
+  table until more than one contact per job worker is actually needed.
+- There are no performance columns (rejection rate, on-time %, turnaround).
+  Those must be derived from real job work transactions, never typed onto
+  the master record.
+
+No other ERP modules (other masters, orders, inventory, BOM, purchase orders,
+production, QC, packing, ...) exist yet.
+
+Migration note: `0002_suppliers` has a hand-set journal timestamp
+(`when: 1790600000000`), and `0003_job_workers` was bumped above it. Drizzle
+only applies migrations whose `when` is later than the last applied one, so
+after `db:generate`, check that a new journal entry's `when` is greater than
+the previous entry's.
 
 See [docs/decisions](decisions/) for the reasoning behind the major choices.
