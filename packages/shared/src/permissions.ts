@@ -26,6 +26,10 @@ export const PermissionCode = {
   CUSTOMERS_VIEW: "customers.view",
   CUSTOMERS_CREATE: "customers.create",
   CUSTOMERS_EDIT: "customers.edit",
+
+  SUPPLIERS_VIEW: "suppliers.view",
+  SUPPLIERS_CREATE: "suppliers.create",
+  SUPPLIERS_EDIT: "suppliers.edit",
 } as const;
 
 export type PermissionCode = (typeof PermissionCode)[keyof typeof PermissionCode];

@@ -6,6 +6,7 @@ import { usersRoute } from "./modules/users/users.routes.js";
 import { rolesRoute } from "./modules/roles/roles.routes.js";
 import { permissionsRoute } from "./modules/permissions/permissions.routes.js";
 import { customersRoute } from "./modules/customers/customers.routes.js";
+import { suppliersRoute } from "./modules/suppliers/suppliers.routes.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import type { AppEnv } from "./types/hono.js";
 
@@ -31,3 +32,4 @@ app.route("/api/users", usersRoute);
 app.route("/api/roles", rolesRoute);
 app.route("/api/permissions", permissionsRoute);
 app.route("/api/customers", customersRoute);
+app.route("/api/suppliers", suppliersRoute);
