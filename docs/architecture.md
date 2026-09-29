@@ -98,9 +98,10 @@ PostgreSQL) is implemented. It is master data only — job work operations
 Deliberate interim choices, documented in
 `apps/api/src/db/schema/job-workers.ts`:
 
-- `process` and `capacity_unit` are normalized uppercase free-text codes
-  (no enum), until Process and Unit masters exist and can replace them with
-  foreign keys.
+- `process_id` and `capacity_unit_id` reference editable Process and Unit
+  masters. Migration `0004_reference_masters` preserves legacy text values
+  before removing the temporary columns. See [reference-masters](reference-masters.md)
+  for the API contract change and migration details.
 - `rate_agreement` is a free-text summary; structured job work rates belong
   to the future job work module.
 - Contact details are columns on the row; there is no `job_worker_contacts`
@@ -108,6 +109,9 @@ Deliberate interim choices, documented in
 - There are no performance columns (rejection rate, on-time %, turnaround).
   Those must be derived from real job work transactions, never typed onto
   the master record.
+
+Process and Unit masters are implemented with CRUD (deactivation instead of
+deletion), permissions, audit logging, and idempotent baseline seed data.
 
 No other ERP modules (other masters, orders, inventory, BOM, purchase orders,
 production, QC, packing, ...) exist yet.

@@ -34,6 +34,13 @@ export const PermissionCode = {
   JOB_WORKERS_VIEW: "job_workers.view",
   JOB_WORKERS_CREATE: "job_workers.create",
   JOB_WORKERS_EDIT: "job_workers.edit",
+  PROCESSES_VIEW: "processes.view",
+  PROCESSES_CREATE: "processes.create",
+  PROCESSES_EDIT: "processes.edit",
+  UNITS_VIEW: "units.view",
+  UNITS_CREATE: "units.create",
+  UNITS_EDIT: "units.edit",
 } as const;
 
-export type PermissionCode = (typeof PermissionCode)[keyof typeof PermissionCode];
+export type PermissionCode =
+  (typeof PermissionCode)[keyof typeof PermissionCode];

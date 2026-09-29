@@ -1,24 +1,21 @@
 import type {
-  CreateJobWorkerInput,
-  ListJobWorkersQuery,
-  UpdateJobWorkerInput,
+  CreateUnitInput,
+  ListUnitsQuery,
+  UpdateUnitInput,
 } from "@garment-erp/validation";
 import { db } from "../../db/client.js";
-import { validateJobWorkerReferences } from "./job-workers.references.js";
 import type { ActorContext } from "../../lib/actor-context.js";
 import { ApiErrors } from "../../lib/api-error.js";
 import { recordAuditLog } from "../../lib/audit.js";
 import {
-  findJobWorkerByCode,
-  findJobWorkerById,
-  insertJobWorker,
-  listJobWorkers,
-  updateJobWorker,
-} from "./job-workers.repository.js";
+  findUnitByCode,
+  findUnitById,
+  insertUnit,
+  listUnits,
+  updateUnit,
+} from "./units.repository.js";
 
-const DUPLICATE_CODE_MESSAGE = "A job worker with this code already exists";
-const CAPACITY_PAIRING_MESSAGE =
-  "capacityPerDay and capacityUnitId must be provided together";
+const DUPLICATE_CODE_MESSAGE = "A unit with this code already exists";
 
 // The pre-check gives a clean 409 in the common case; this catches the race
 // where two requests insert the same code concurrently and the unique
@@ -49,50 +46,34 @@ function diffFields<T extends Record<string, unknown>>(
   return { oldValue, newValue };
 }
 
-const JOB_WORKER_AUDIT_FIELDS = [
+const UNIT_AUDIT_FIELDS = [
   "code",
   "name",
-  "contactPerson",
-  "email",
-  "phone",
-  "billingAddress",
-  "operatingAddress",
-  "processId",
-  "capacityPerDay",
-  "capacityUnitId",
-  "leadTimeDays",
-  "rateAgreement",
-  "paymentTerms",
-  "taxInformation",
-  "notes",
+  "symbol",
+  "decimalPlaces",
   "isActive",
 ] as const;
 
-export function listJobWorkersPage(query: ListJobWorkersQuery) {
-  return listJobWorkers(query.page, query.pageSize, {
+export function listUnitsPage(query: ListUnitsQuery) {
+  return listUnits(query.page, query.pageSize, {
     search: query.search,
     isActive: query.isActive,
-    processId: query.processId,
   });
 }
 
-export async function getJobWorkerById(id: string) {
-  const [jobWorker] = await findJobWorkerById(id);
-  if (!jobWorker) throw ApiErrors.notFound("Job worker");
-  return jobWorker;
+export async function getUnitById(id: string) {
+  const [unit] = await findUnitById(id);
+  if (!unit) throw ApiErrors.notFound("Unit");
+  return unit;
 }
 
-export async function createJobWorker(
-  input: CreateJobWorkerInput,
-  actor: ActorContext,
-) {
-  const [existing] = await findJobWorkerByCode(input.code);
+export async function createUnit(input: CreateUnitInput, actor: ActorContext) {
+  const [existing] = await findUnitByCode(input.code);
   if (existing) throw ApiErrors.conflict(DUPLICATE_CODE_MESSAGE);
 
   try {
     return await db.transaction(async (tx) => {
-      await validateJobWorkerReferences(input, tx);
-      const [created] = await insertJobWorker(
+      const [created] = await insertUnit(
         {
           ...input,
           createdBy: actor.actorUserId,
@@ -101,19 +82,17 @@ export async function createJobWorker(
         tx,
       );
 
-      if (!created) throw new Error("Failed to create job worker");
+      if (!created) throw new Error("Failed to create unit");
 
       await recordAuditLog(
         {
           userId: actor.actorUserId,
-          action: "job_worker.created",
-          entityType: "job_worker",
+          action: "unit.created",
+          entityType: "unit",
           entityId: created.id,
-          newValue: {
-            code: created.code,
-            name: created.name,
-            processId: created.processId,
-          },
+          newValue: Object.fromEntries(
+            UNIT_AUDIT_FIELDS.map((field) => [field, created[field]]),
+          ),
           ipAddress: actor.ipAddress,
           userAgent: actor.userAgent,
         },
@@ -129,63 +108,43 @@ export async function createJobWorker(
   }
 }
 
-export async function updateJobWorkerDetails(
+export async function updateUnitDetails(
   id: string,
-  input: UpdateJobWorkerInput,
+  input: UpdateUnitInput,
   actor: ActorContext,
 ) {
-  const existing = await getJobWorkerById(id);
-
-  // A PATCH may send only one of capacityPerDay/capacityUnitId, so the pairing
-  // rule is checked against the row as it will be after the update.
-  if (
-    input.capacityPerDay !== undefined ||
-    input.capacityUnitId !== undefined
-  ) {
-    const capacity =
-      input.capacityPerDay !== undefined
-        ? input.capacityPerDay
-        : existing.capacityPerDay;
-    const unit =
-      input.capacityUnitId !== undefined
-        ? input.capacityUnitId
-        : existing.capacityUnitId;
-    if ((capacity === null) !== (unit === null)) {
-      throw ApiErrors.validation(CAPACITY_PAIRING_MESSAGE);
-    }
-  }
+  const existing = await getUnitById(id);
 
   if (input.code && input.code !== existing.code) {
-    const [clash] = await findJobWorkerByCode(input.code);
+    const [clash] = await findUnitByCode(input.code);
     if (clash) throw ApiErrors.conflict(DUPLICATE_CODE_MESSAGE);
   }
 
   try {
     return await db.transaction(async (tx) => {
-      await validateJobWorkerReferences(input, tx, existing);
-      const [updated] = await updateJobWorker(
+      const [updated] = await updateUnit(
         id,
         { ...input, updatedBy: actor.actorUserId },
         tx,
       );
 
-      if (!updated) throw new Error("Failed to update job worker");
+      if (!updated) throw new Error("Failed to update unit");
 
       const action =
         typeof input.isActive === "boolean" &&
         input.isActive !== existing.isActive
           ? input.isActive
-            ? "job_worker.activated"
-            : "job_worker.deactivated"
-          : "job_worker.updated";
+            ? "unit.activated"
+            : "unit.deactivated"
+          : "unit.updated";
 
       await recordAuditLog(
         {
           userId: actor.actorUserId,
           action,
-          entityType: "job_worker",
+          entityType: "unit",
           entityId: id,
-          ...diffFields(existing, updated, JOB_WORKER_AUDIT_FIELDS),
+          ...diffFields(existing, updated, UNIT_AUDIT_FIELDS),
           ipAddress: actor.ipAddress,
           userAgent: actor.userAgent,
         },

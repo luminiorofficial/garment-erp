@@ -8,28 +8,13 @@ const jobWorkerCodeSchema = z
   .toUpperCase()
   .min(2)
   .max(30)
-  .regex(/^[A-Z0-9][A-Z0-9_-]*$/, "code may only contain letters, digits, '-' and '_'");
+  .regex(
+    /^[A-Z0-9][A-Z0-9_-]*$/,
+    "code may only contain letters, digits, '-' and '_'",
+  );
 
-// The process a job worker performs (STITCHING, EMBROIDERY, ...). Free-form
-// but normalized to an uppercase code so filtering is consistent; there is no
-// fixed list until a Process Master exists.
-const processSchema = z
-  .string()
-  .trim()
-  .toUpperCase()
-  .min(2)
-  .max(50)
-  .regex(/^[A-Z0-9][A-Z0-9 _-]*$/, "process may only contain letters, digits, spaces, '-' and '_'");
-
-// Unit the daily capacity is measured in (PCS, KG, MTR, ...). Free-form until
-// a Unit Master exists.
-const capacityUnitSchema = z
-  .string()
-  .trim()
-  .toUpperCase()
-  .min(1)
-  .max(10)
-  .regex(/^[A-Z][A-Z0-9_]*$/, "capacityUnit may only contain letters, digits and '_'");
+const processSchema = z.string().uuid();
+const capacityUnitSchema = z.string().uuid();
 
 // Whole units per day, must be positive. Capped at a million to catch typos
 // (and stay well inside a Postgres integer).
@@ -39,10 +24,13 @@ const capacityPerDaySchema = z.number().int().min(1).max(1_000_000);
 // supplier lead time.
 const leadTimeDaysSchema = z.number().int().min(0).max(365);
 
-const optionalText = (max: number) => z.string().trim().min(1).max(max).optional();
-const nullableText = (max: number) => z.string().trim().min(1).max(max).nullable().optional();
+const optionalText = (max: number) =>
+  z.string().trim().min(1).max(max).optional();
+const nullableText = (max: number) =>
+  z.string().trim().min(1).max(max).nullable().optional();
 
-const CAPACITY_PAIRING_MESSAGE = "capacityPerDay and capacityUnit must be provided together";
+const CAPACITY_PAIRING_MESSAGE =
+  "capacityPerDay and capacityUnitId must be provided together";
 
 export const createJobWorkerSchema = z
   .object({
@@ -53,18 +41,20 @@ export const createJobWorkerSchema = z
     phone: optionalText(30),
     billingAddress: optionalText(1000),
     operatingAddress: optionalText(1000),
-    process: processSchema.optional(),
-    capacityPerDay: capacityPerDaySchema.optional(),
-    capacityUnit: capacityUnitSchema.optional(),
+    processId: processSchema.nullable().optional(),
+    capacityPerDay: capacityPerDaySchema.nullable().optional(),
+    capacityUnitId: capacityUnitSchema.nullable().optional(),
     leadTimeDays: leadTimeDaysSchema.optional(),
     rateAgreement: optionalText(500),
     paymentTerms: optionalText(200),
     taxInformation: optionalText(500),
     notes: optionalText(2000),
   })
+  .strict()
   .refine(
-    (value) => (value.capacityPerDay === undefined) === (value.capacityUnit === undefined),
-    { message: CAPACITY_PAIRING_MESSAGE, path: ["capacityUnit"] }
+    (value) =>
+      (value.capacityPerDay == null) === (value.capacityUnitId == null),
+    { message: CAPACITY_PAIRING_MESSAGE, path: ["capacityUnitId"] },
   );
 
 export type CreateJobWorkerInput = z.infer<typeof createJobWorkerSchema>;
@@ -81,9 +71,9 @@ export const updateJobWorkerSchema = z
     phone: nullableText(30),
     billingAddress: nullableText(1000),
     operatingAddress: nullableText(1000),
-    process: processSchema.nullable().optional(),
+    processId: processSchema.nullable().optional(),
     capacityPerDay: capacityPerDaySchema.nullable().optional(),
-    capacityUnit: capacityUnitSchema.nullable().optional(),
+    capacityUnitId: capacityUnitSchema.nullable().optional(),
     leadTimeDays: leadTimeDaysSchema.nullable().optional(),
     rateAgreement: nullableText(500),
     paymentTerms: nullableText(200),
@@ -91,17 +81,23 @@ export const updateJobWorkerSchema = z
     notes: nullableText(2000),
     isActive: z.boolean().optional(),
   })
-  .refine((value) => Object.keys(value).length > 0, "At least one field must be provided");
+  .strict()
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    "At least one field must be provided",
+  );
 
 export type UpdateJobWorkerInput = z.infer<typeof updateJobWorkerSchema>;
 
-export const listJobWorkersQuerySchema = paginationQuerySchema.extend({
-  search: z.string().trim().min(1).max(200).optional(),
-  isActive: z
-    .enum(["true", "false"])
-    .transform((value) => value === "true")
-    .optional(),
-  process: processSchema.optional(),
-});
+export const listJobWorkersQuerySchema = paginationQuerySchema
+  .extend({
+    search: z.string().trim().min(1).max(200).optional(),
+    isActive: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .optional(),
+    processId: processSchema.optional(),
+  })
+  .strict();
 
 export type ListJobWorkersQuery = z.infer<typeof listJobWorkersQuerySchema>;

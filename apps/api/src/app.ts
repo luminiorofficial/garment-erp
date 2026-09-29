@@ -1,3 +1,5 @@
+import { unitsRoute } from "./modules/units/units.routes.js";
+import { processesRoute } from "./modules/processes/processes.routes.js";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { healthRoute } from "./routes/health.js";
@@ -22,7 +24,7 @@ app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
-  })
+  }),
 );
 
 app.onError(errorHandler);
@@ -35,3 +37,5 @@ app.route("/api/permissions", permissionsRoute);
 app.route("/api/customers", customersRoute);
 app.route("/api/suppliers", suppliersRoute);
 app.route("/api/job-workers", jobWorkersRoute);
+app.route("/api/processes", processesRoute);
+app.route("/api/units", unitsRoute);

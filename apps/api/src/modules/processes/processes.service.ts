@@ -1,24 +1,21 @@
 import type {
-  CreateJobWorkerInput,
-  ListJobWorkersQuery,
-  UpdateJobWorkerInput,
+  CreateProcessInput,
+  ListProcessesQuery,
+  UpdateProcessInput,
 } from "@garment-erp/validation";
 import { db } from "../../db/client.js";
-import { validateJobWorkerReferences } from "./job-workers.references.js";
 import type { ActorContext } from "../../lib/actor-context.js";
 import { ApiErrors } from "../../lib/api-error.js";
 import { recordAuditLog } from "../../lib/audit.js";
 import {
-  findJobWorkerByCode,
-  findJobWorkerById,
-  insertJobWorker,
-  listJobWorkers,
-  updateJobWorker,
-} from "./job-workers.repository.js";
+  findProcessByCode,
+  findProcessById,
+  insertProcess,
+  listProcesses,
+  updateProcess,
+} from "./processes.repository.js";
 
-const DUPLICATE_CODE_MESSAGE = "A job worker with this code already exists";
-const CAPACITY_PAIRING_MESSAGE =
-  "capacityPerDay and capacityUnitId must be provided together";
+const DUPLICATE_CODE_MESSAGE = "A process with this code already exists";
 
 // The pre-check gives a clean 409 in the common case; this catches the race
 // where two requests insert the same code concurrently and the unique
@@ -49,50 +46,36 @@ function diffFields<T extends Record<string, unknown>>(
   return { oldValue, newValue };
 }
 
-const JOB_WORKER_AUDIT_FIELDS = [
+const PROCESS_AUDIT_FIELDS = [
   "code",
   "name",
-  "contactPerson",
-  "email",
-  "phone",
-  "billingAddress",
-  "operatingAddress",
-  "processId",
-  "capacityPerDay",
-  "capacityUnitId",
-  "leadTimeDays",
-  "rateAgreement",
-  "paymentTerms",
-  "taxInformation",
-  "notes",
+  "description",
   "isActive",
 ] as const;
 
-export function listJobWorkersPage(query: ListJobWorkersQuery) {
-  return listJobWorkers(query.page, query.pageSize, {
+export function listProcessesPage(query: ListProcessesQuery) {
+  return listProcesses(query.page, query.pageSize, {
     search: query.search,
     isActive: query.isActive,
-    processId: query.processId,
   });
 }
 
-export async function getJobWorkerById(id: string) {
-  const [jobWorker] = await findJobWorkerById(id);
-  if (!jobWorker) throw ApiErrors.notFound("Job worker");
-  return jobWorker;
+export async function getProcessById(id: string) {
+  const [process] = await findProcessById(id);
+  if (!process) throw ApiErrors.notFound("Process");
+  return process;
 }
 
-export async function createJobWorker(
-  input: CreateJobWorkerInput,
+export async function createProcess(
+  input: CreateProcessInput,
   actor: ActorContext,
 ) {
-  const [existing] = await findJobWorkerByCode(input.code);
+  const [existing] = await findProcessByCode(input.code);
   if (existing) throw ApiErrors.conflict(DUPLICATE_CODE_MESSAGE);
 
   try {
     return await db.transaction(async (tx) => {
-      await validateJobWorkerReferences(input, tx);
-      const [created] = await insertJobWorker(
+      const [created] = await insertProcess(
         {
           ...input,
           createdBy: actor.actorUserId,
@@ -101,19 +84,17 @@ export async function createJobWorker(
         tx,
       );
 
-      if (!created) throw new Error("Failed to create job worker");
+      if (!created) throw new Error("Failed to create process");
 
       await recordAuditLog(
         {
           userId: actor.actorUserId,
-          action: "job_worker.created",
-          entityType: "job_worker",
+          action: "process.created",
+          entityType: "process",
           entityId: created.id,
-          newValue: {
-            code: created.code,
-            name: created.name,
-            processId: created.processId,
-          },
+          newValue: Object.fromEntries(
+            PROCESS_AUDIT_FIELDS.map((field) => [field, created[field]]),
+          ),
           ipAddress: actor.ipAddress,
           userAgent: actor.userAgent,
         },
@@ -129,63 +110,43 @@ export async function createJobWorker(
   }
 }
 
-export async function updateJobWorkerDetails(
+export async function updateProcessDetails(
   id: string,
-  input: UpdateJobWorkerInput,
+  input: UpdateProcessInput,
   actor: ActorContext,
 ) {
-  const existing = await getJobWorkerById(id);
-
-  // A PATCH may send only one of capacityPerDay/capacityUnitId, so the pairing
-  // rule is checked against the row as it will be after the update.
-  if (
-    input.capacityPerDay !== undefined ||
-    input.capacityUnitId !== undefined
-  ) {
-    const capacity =
-      input.capacityPerDay !== undefined
-        ? input.capacityPerDay
-        : existing.capacityPerDay;
-    const unit =
-      input.capacityUnitId !== undefined
-        ? input.capacityUnitId
-        : existing.capacityUnitId;
-    if ((capacity === null) !== (unit === null)) {
-      throw ApiErrors.validation(CAPACITY_PAIRING_MESSAGE);
-    }
-  }
+  const existing = await getProcessById(id);
 
   if (input.code && input.code !== existing.code) {
-    const [clash] = await findJobWorkerByCode(input.code);
+    const [clash] = await findProcessByCode(input.code);
     if (clash) throw ApiErrors.conflict(DUPLICATE_CODE_MESSAGE);
   }
 
   try {
     return await db.transaction(async (tx) => {
-      await validateJobWorkerReferences(input, tx, existing);
-      const [updated] = await updateJobWorker(
+      const [updated] = await updateProcess(
         id,
         { ...input, updatedBy: actor.actorUserId },
         tx,
       );
 
-      if (!updated) throw new Error("Failed to update job worker");
+      if (!updated) throw new Error("Failed to update process");
 
       const action =
         typeof input.isActive === "boolean" &&
         input.isActive !== existing.isActive
           ? input.isActive
-            ? "job_worker.activated"
-            : "job_worker.deactivated"
-          : "job_worker.updated";
+            ? "process.activated"
+            : "process.deactivated"
+          : "process.updated";
 
       await recordAuditLog(
         {
           userId: actor.actorUserId,
           action,
-          entityType: "job_worker",
+          entityType: "process",
           entityId: id,
-          ...diffFields(existing, updated, JOB_WORKER_AUDIT_FIELDS),
+          ...diffFields(existing, updated, PROCESS_AUDIT_FIELDS),
           ipAddress: actor.ipAddress,
           userAgent: actor.userAgent,
         },

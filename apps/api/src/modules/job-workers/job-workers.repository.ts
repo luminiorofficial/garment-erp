@@ -7,18 +7,22 @@ type JobWorkerRow = typeof jobWorkers.$inferSelect;
 export interface JobWorkerListFilters {
   search?: string;
   isActive?: boolean;
-  process?: string;
+  processId?: string;
 }
 
-export function listJobWorkers(page: number, pageSize: number, filters: JobWorkerListFilters) {
+export function listJobWorkers(
+  page: number,
+  pageSize: number,
+  filters: JobWorkerListFilters,
+) {
   const conditions: SQL[] = [];
 
   if (typeof filters.isActive === "boolean") {
     conditions.push(eq(jobWorkers.isActive, filters.isActive));
   }
 
-  if (filters.process) {
-    conditions.push(eq(jobWorkers.process, filters.process));
+  if (filters.processId) {
+    conditions.push(eq(jobWorkers.processId, filters.processId));
   }
 
   if (filters.search) {
@@ -26,7 +30,7 @@ export function listJobWorkers(page: number, pageSize: number, filters: JobWorke
     const searchCondition = or(
       ilike(jobWorkers.name, pattern),
       ilike(jobWorkers.code, pattern),
-      ilike(jobWorkers.contactPerson, pattern)
+      ilike(jobWorkers.contactPerson, pattern),
     );
     if (searchCondition) conditions.push(searchCondition);
   }
@@ -50,7 +54,7 @@ export function findJobWorkerByCode(code: string) {
 
 export function insertJobWorker(
   values: typeof jobWorkers.$inferInsert,
-  executor: Executor = db
+  executor: Executor = db,
 ): Promise<JobWorkerRow[]> {
   return executor.insert(jobWorkers).values(values).returning();
 }
@@ -58,7 +62,7 @@ export function insertJobWorker(
 export function updateJobWorker(
   id: string,
   values: Partial<typeof jobWorkers.$inferInsert>,
-  executor: Executor = db
+  executor: Executor = db,
 ): Promise<JobWorkerRow[]> {
   return executor
     .update(jobWorkers)

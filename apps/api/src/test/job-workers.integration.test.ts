@@ -12,6 +12,8 @@ import { db } from "../db/client.js";
 import {
   auditLogs,
   jobWorkers,
+  processes,
+  units,
   permissions,
   rolePermissions,
   roles,
@@ -31,17 +33,23 @@ try {
 
 const MANAGER_EMAIL = "integration-test-jobworker-manager@example.com";
 const NO_PERMISSION_EMAIL = "integration-test-jobworker-noperm@example.com";
-const OTHER_PERMISSION_EMAIL = "integration-test-jobworker-otherperm@example.com";
-const TEST_EMAILS = [MANAGER_EMAIL, NO_PERMISSION_EMAIL, OTHER_PERMISSION_EMAIL];
+const OTHER_PERMISSION_EMAIL =
+  "integration-test-jobworker-otherperm@example.com";
+const TEST_EMAILS = [
+  MANAGER_EMAIL,
+  NO_PERMISSION_EMAIL,
+  OTHER_PERMISSION_EMAIL,
+];
 const TEST_PASSWORD = "correct horse battery staple";
 const MANAGER_ROLE_CODE = "integration_test_jobworker_role";
 const OTHER_ROLE_CODE = "integration_test_jobworker_other_role";
-// Codes (and the process name used for filtering) are unique per run so a
+// Codes (and the processId name used for filtering) are unique per run so a
 // previously aborted run can't cause false 409s or extra filter matches.
 const RUN_ID = Date.now();
 const CODE_PREFIX = `IJW-${RUN_ID}`;
-const PROCESS = `ITEST${RUN_ID}`;
-const OTHER_PROCESS = `ITESTX${RUN_ID}`;
+const PROCESS = crypto.randomUUID();
+const UNIT = crypto.randomUUID();
+const OTHER_PROCESS = crypto.randomUUID();
 
 const JOB_WORKER_PERMISSIONS = [
   PermissionCode.JOB_WORKERS_VIEW,
@@ -75,7 +83,11 @@ async function login(email: string): Promise<string> {
   return extractSessionCookie(res);
 }
 
-function jsonRequest(cookie: string, method: string, body: unknown): RequestInit {
+function jsonRequest(
+  cookie: string,
+  method: string,
+  body: unknown,
+): RequestInit {
   return {
     method,
     headers: { "content-type": "application/json", cookie },
@@ -83,7 +95,10 @@ function jsonRequest(cookie: string, method: string, body: unknown): RequestInit
   };
 }
 
-async function createRoleWithPermissions(code: string, permissionCodes: string[]) {
+async function createRoleWithPermissions(
+  code: string,
+  permissionCodes: string[],
+) {
   const [role] = await db
     .insert(roles)
     .values({ code, name: `Integration Test ${code}` })
@@ -94,7 +109,11 @@ async function createRoleWithPermissions(code: string, permissionCodes: string[]
     const [resource, action] = permissionCode.split(".");
     await db
       .insert(permissions)
-      .values({ code: permissionCode, resource: resource ?? permissionCode, action: action ?? permissionCode })
+      .values({
+        code: permissionCode,
+        resource: resource ?? permissionCode,
+        action: action ?? permissionCode,
+      })
       .onConflictDoNothing({ target: permissions.code });
   }
   const permissionRows = await db
@@ -102,7 +121,9 @@ async function createRoleWithPermissions(code: string, permissionCodes: string[]
     .from(permissions)
     .where(inArray(permissions.code, permissionCodes));
   for (const permission of permissionRows) {
-    await db.insert(rolePermissions).values({ roleId: role.id, permissionId: permission.id });
+    await db
+      .insert(rolePermissions)
+      .values({ roleId: role.id, permissionId: permission.id });
   }
   return role.id;
 }
@@ -113,9 +134,9 @@ interface JobWorkerBody {
   name: string;
   contactPerson: string | null;
   email: string | null;
-  process: string | null;
+  processId: string | null;
   capacityPerDay: number | null;
-  capacityUnit: string | null;
+  capacityUnitId: string | null;
   leadTimeDays: number | null;
   rateAgreement: string | null;
   isActive: boolean;
@@ -137,8 +158,13 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
   let otherPermissionCookie: string;
   let jobWorkerId: string;
 
-  async function createJobWorker(body: Record<string, unknown>): Promise<JobWorkerBody> {
-    const res = await app.request("/api/job-workers", jsonRequest(managerCookie, "POST", body));
+  async function createJobWorker(
+    body: Record<string, unknown>,
+  ): Promise<JobWorkerBody> {
+    const res = await app.request(
+      "/api/job-workers",
+      jsonRequest(managerCookie, "POST", body),
+    );
     expect(res.status).toBe(201);
     return (await res.json()) as JobWorkerBody;
   }
@@ -152,21 +178,50 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
   }
 
   beforeAll(async () => {
+    await db.insert(processes).values([
+      { id: PROCESS, code: `ITEST${RUN_ID}`, name: "Test process" },
+      { id: OTHER_PROCESS, code: `ITESTX${RUN_ID}`, name: "Other process" },
+    ]);
+    await db
+      .insert(units)
+      .values({ id: UNIT, code: `ITEST${RUN_ID}`, name: "Test unit" });
     const passwordHash = await hashPassword(TEST_PASSWORD);
 
     const [manager, noPermission, otherPermission] = await db
       .insert(users)
       .values([
-        { email: MANAGER_EMAIL, passwordHash, firstName: "JobWorker", lastName: "Manager" },
-        { email: NO_PERMISSION_EMAIL, passwordHash, firstName: "No", lastName: "Permission" },
-        { email: OTHER_PERMISSION_EMAIL, passwordHash, firstName: "Other", lastName: "Permission" },
+        {
+          email: MANAGER_EMAIL,
+          passwordHash,
+          firstName: "JobWorker",
+          lastName: "Manager",
+        },
+        {
+          email: NO_PERMISSION_EMAIL,
+          passwordHash,
+          firstName: "No",
+          lastName: "Permission",
+        },
+        {
+          email: OTHER_PERMISSION_EMAIL,
+          passwordHash,
+          firstName: "Other",
+          lastName: "Permission",
+        },
       ])
       .returning();
-    if (!manager || !noPermission || !otherPermission) throw new Error("Failed to create test users");
+    if (!manager || !noPermission || !otherPermission)
+      throw new Error("Failed to create test users");
     managerId = manager.id;
 
-    const managerRoleId = await createRoleWithPermissions(MANAGER_ROLE_CODE, JOB_WORKER_PERMISSIONS);
-    const otherRoleId = await createRoleWithPermissions(OTHER_ROLE_CODE, UNRELATED_PERMISSIONS);
+    const managerRoleId = await createRoleWithPermissions(
+      MANAGER_ROLE_CODE,
+      JOB_WORKER_PERMISSIONS,
+    );
+    const otherRoleId = await createRoleWithPermissions(
+      OTHER_ROLE_CODE,
+      UNRELATED_PERMISSIONS,
+    );
     roleIds = [managerRoleId, otherRoleId];
     await db.insert(userRoles).values([
       { userId: managerId, roleId: managerRoleId },
@@ -187,13 +242,24 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
     ).map((row) => row.id);
 
     if (testJobWorkerIds.length > 0) {
-      await db.delete(auditLogs).where(inArray(auditLogs.entityId, testJobWorkerIds));
-      await db.delete(jobWorkers).where(inArray(jobWorkers.id, testJobWorkerIds));
+      await db
+        .delete(auditLogs)
+        .where(inArray(auditLogs.entityId, testJobWorkerIds));
+      await db
+        .delete(jobWorkers)
+        .where(inArray(jobWorkers.id, testJobWorkerIds));
     }
+
+    await db
+      .delete(processes)
+      .where(inArray(processes.id, [PROCESS, OTHER_PROCESS]));
+    await db.delete(units).where(eq(units.id, UNIT));
 
     if (roleIds.length > 0) {
       await db.delete(userRoles).where(inArray(userRoles.roleId, roleIds));
-      await db.delete(rolePermissions).where(inArray(rolePermissions.roleId, roleIds));
+      await db
+        .delete(rolePermissions)
+        .where(inArray(rolePermissions.roleId, roleIds));
       await db.delete(roles).where(inArray(roles.id, roleIds));
     }
     await db.delete(users).where(inArray(users.email, TEST_EMAILS));
@@ -219,7 +285,10 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
 
     const create = await app.request(
       "/api/job-workers",
-      jsonRequest(noPermissionCookie, "POST", { code: `${CODE_PREFIX}-X`, name: "Nope" })
+      jsonRequest(noPermissionCookie, "POST", {
+        code: `${CODE_PREFIX}-X`,
+        name: "Nope",
+      }),
     );
     expect(create.status).toBe(403);
   });
@@ -232,24 +301,29 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
 
     const create = await app.request(
       "/api/job-workers",
-      jsonRequest(otherPermissionCookie, "POST", { code: `${CODE_PREFIX}-X`, name: "Nope" })
+      jsonRequest(otherPermissionCookie, "POST", {
+        code: `${CODE_PREFIX}-X`,
+        name: "Nope",
+      }),
     );
     expect(create.status).toBe(403);
 
     // And the reverse: job worker permissions don't open the other masters.
-    const suppliersRes = await app.request("/api/suppliers", { headers: { cookie: managerCookie } });
+    const suppliersRes = await app.request("/api/suppliers", {
+      headers: { cookie: managerCookie },
+    });
     expect(suppliersRes.status).toBe(403);
   });
 
-  it("creates a job worker, normalizing code/process/email and stamping createdBy", async () => {
+  it("creates a job worker, normalizing code/processId/email and stamping createdBy", async () => {
     const body = await createJobWorker({
       code: `${CODE_PREFIX.toLowerCase()}-stw`,
       name: "Stitchwell Works",
       contactPerson: "Ravi Kumar",
       email: "Ravi@Stitchwell.Example",
-      process: PROCESS.toLowerCase(),
+      processId: PROCESS,
       capacityPerDay: 1200,
-      capacityUnit: "pcs",
+      capacityUnitId: UNIT,
       leadTimeDays: 7,
       rateAgreement: "₹18 / piece stitching",
     });
@@ -257,9 +331,9 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
     expect(body.code).toBe(`${CODE_PREFIX}-STW`);
     expect(body.name).toBe("Stitchwell Works");
     expect(body.email).toBe("ravi@stitchwell.example");
-    expect(body.process).toBe(PROCESS);
+    expect(body.processId).toBe(PROCESS);
     expect(body.capacityPerDay).toBe(1200);
-    expect(body.capacityUnit).toBe("PCS");
+    expect(body.capacityUnitId).toBe(UNIT);
     expect(body.leadTimeDays).toBe(7);
     expect(body.rateAgreement).toBe("₹18 / piece stitching");
     expect(body.isActive).toBe(true);
@@ -284,14 +358,17 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
     });
     expect(malformed.status).toBe(422);
 
-    const unknown = await app.request("/api/job-workers/00000000-0000-4000-8000-000000000000", {
-      headers: { cookie: managerCookie },
-    });
+    const unknown = await app.request(
+      "/api/job-workers/00000000-0000-4000-8000-000000000000",
+      {
+        headers: { cookie: managerCookie },
+      },
+    );
     expect(unknown.status).toBe(404);
 
     const unknownPatch = await app.request(
       "/api/job-workers/00000000-0000-4000-8000-000000000000",
-      jsonRequest(managerCookie, "PATCH", { name: "X" })
+      jsonRequest(managerCookie, "PATCH", { name: "X" }),
     );
     expect(unknownPatch.status).toBe(404);
   });
@@ -299,7 +376,10 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
   it("rejects a duplicate code (in any casing) with 409", async () => {
     const res = await app.request(
       "/api/job-workers",
-      jsonRequest(managerCookie, "POST", { code: `${CODE_PREFIX.toLowerCase()}-stw`, name: "Other" })
+      jsonRequest(managerCookie, "POST", {
+        code: `${CODE_PREFIX.toLowerCase()}-stw`,
+        name: "Other",
+      }),
     );
     expect(res.status).toBe(409);
     const body = (await res.json()) as { error: { code: string } };
@@ -308,24 +388,47 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
 
   it("rejects negative capacity, negative lead time, unpaired capacity and empty PATCH with 422", async () => {
     const cases: [string, string, unknown][] = [
-      ["POST", "/api/job-workers", { code: `${CODE_PREFIX}-BAD`, name: "Bad", capacityPerDay: -10, capacityUnit: "PCS" }],
-      ["POST", "/api/job-workers", { code: `${CODE_PREFIX}-BAD`, name: "Bad", leadTimeDays: -1 }],
-      ["POST", "/api/job-workers", { code: `${CODE_PREFIX}-BAD`, name: "Bad", capacityPerDay: 100 }],
+      [
+        "POST",
+        "/api/job-workers",
+        {
+          code: `${CODE_PREFIX}-BAD`,
+          name: "Bad",
+          capacityPerDay: -10,
+          capacityUnitId: UNIT,
+        },
+      ],
+      [
+        "POST",
+        "/api/job-workers",
+        { code: `${CODE_PREFIX}-BAD`, name: "Bad", leadTimeDays: -1 },
+      ],
+      [
+        "POST",
+        "/api/job-workers",
+        { code: `${CODE_PREFIX}-BAD`, name: "Bad", capacityPerDay: 100 },
+      ],
       ["PATCH", `/api/job-workers/${jobWorkerId}`, { capacityPerDay: -10 }],
       ["PATCH", `/api/job-workers/${jobWorkerId}`, { leadTimeDays: -3 }],
-      ["PATCH", `/api/job-workers/${jobWorkerId}`, { capacityUnit: null }],
+      ["PATCH", `/api/job-workers/${jobWorkerId}`, { capacityUnitId: null }],
       ["PATCH", `/api/job-workers/${jobWorkerId}`, {}],
     ];
     for (const [method, path, body] of cases) {
-      const res = await app.request(path, jsonRequest(managerCookie, method, body));
+      const res = await app.request(
+        path,
+        jsonRequest(managerCookie, method, body),
+      );
       expect(res.status, `${method} ${JSON.stringify(body)}`).toBe(422);
       const errorBody = (await res.json()) as { error: { code: string } };
       expect(errorBody.error.code).toBe("VALIDATION_ERROR");
     }
 
-    const [stored] = await db.select().from(jobWorkers).where(eq(jobWorkers.id, jobWorkerId));
+    const [stored] = await db
+      .select()
+      .from(jobWorkers)
+      .where(eq(jobWorkers.id, jobWorkerId));
     expect(stored?.capacityPerDay).toBe(1200);
-    expect(stored?.capacityUnit).toBe("PCS");
+    expect(stored?.capacityUnitId).toBe(UNIT);
     expect(stored?.leadTimeDays).toBe(7);
   });
 
@@ -337,14 +440,14 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
         capacityPerDay: 1500,
         leadTimeDays: 10,
         paymentTerms: "Net 15",
-      })
+      }),
     );
     expect(res.status).toBe(200);
 
     const body = (await res.json()) as JobWorkerBody;
     expect(body.name).toBe("Stitchwell Works Pvt Ltd");
     expect(body.capacityPerDay).toBe(1500);
-    expect(body.capacityUnit).toBe("PCS");
+    expect(body.capacityUnitId).toBe(UNIT);
     expect(body.leadTimeDays).toBe(10);
     expect(body.updatedBy).toBe(managerId);
 
@@ -355,8 +458,8 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
         and(
           eq(auditLogs.entityType, "job_worker"),
           eq(auditLogs.entityId, jobWorkerId),
-          eq(auditLogs.action, "job_worker.updated")
-        )
+          eq(auditLogs.action, "job_worker.updated"),
+        ),
       );
     expect(entry?.userId).toBe(managerId);
     expect(entry?.oldValue).toEqual({
@@ -374,29 +477,33 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
   });
 
   it("finds job workers by code, name and contact person", async () => {
-    const byCode = await list(`search=${encodeURIComponent(`${CODE_PREFIX}-st`)}`);
+    const byCode = await list(
+      `search=${encodeURIComponent(`${CODE_PREFIX}-st`)}`,
+    );
     expect(byCode.items.map((jw) => jw.id)).toEqual([jobWorkerId]);
 
     const byName = await list(
-      `search=${encodeURIComponent("stitchwell works pvt")}&process=${PROCESS}`
+      `search=${encodeURIComponent("stitchwell works pvt")}&processId=${PROCESS}`,
     );
     expect(byName.items.map((jw) => jw.id)).toEqual([jobWorkerId]);
 
-    const byContact = await list(`search=${encodeURIComponent("ravi kumar")}&process=${PROCESS}`);
+    const byContact = await list(
+      `search=${encodeURIComponent("ravi kumar")}&processId=${PROCESS}`,
+    );
     expect(byContact.items.map((jw) => jw.id)).toEqual([jobWorkerId]);
   });
 
-  it("filters by process (case-insensitively normalized)", async () => {
+  it("filters by processId UUID", async () => {
     const embroiderer = await createJobWorker({
       code: `${CODE_PREFIX}-EMB`,
       name: "Threadart Embroidery",
-      process: OTHER_PROCESS,
+      processId: OTHER_PROCESS,
     });
 
-    const main = await list(`process=${PROCESS.toLowerCase()}&pageSize=200`);
+    const main = await list(`processId=${PROCESS}&pageSize=200`);
     expect(main.items.map((jw) => jw.id)).toEqual([jobWorkerId]);
 
-    const other = await list(`process=${OTHER_PROCESS}&pageSize=200`);
+    const other = await list(`processId=${OTHER_PROCESS}&pageSize=200`);
     expect(other.items.map((jw) => jw.id)).toEqual([embroiderer.id]);
   });
 
@@ -404,24 +511,30 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
     const dormant = await createJobWorker({
       code: `${CODE_PREFIX}-DRM`,
       name: "Dormant Washers",
-      process: PROCESS,
+      processId: PROCESS,
     });
     const deactivate = await app.request(
       `/api/job-workers/${dormant.id}`,
-      jsonRequest(managerCookie, "PATCH", { isActive: false })
+      jsonRequest(managerCookie, "PATCH", { isActive: false }),
     );
     expect(deactivate.status).toBe(200);
 
-    const active = await list(`process=${PROCESS}&isActive=true&pageSize=200`);
+    const active = await list(
+      `processId=${PROCESS}&isActive=true&pageSize=200`,
+    );
     expect(active.items.map((jw) => jw.id)).toEqual([jobWorkerId]);
     expect(active.items.every((jw) => jw.isActive)).toBe(true);
 
-    const inactive = await list(`process=${PROCESS}&isActive=false&pageSize=200`);
+    const inactive = await list(
+      `processId=${PROCESS}&isActive=false&pageSize=200`,
+    );
     expect(inactive.items.map((jw) => jw.id)).toEqual([dormant.id]);
     expect(inactive.items.every((jw) => !jw.isActive)).toBe(true);
 
-    const all = await list(`process=${PROCESS}&pageSize=200`);
-    expect(all.items.map((jw) => jw.id).sort()).toEqual([jobWorkerId, dormant.id].sort());
+    const all = await list(`processId=${PROCESS}&pageSize=200`);
+    expect(all.items.map((jw) => jw.id).sort()).toEqual(
+      [jobWorkerId, dormant.id].sort(),
+    );
   });
 
   it("paginates the job worker list with page and pageSize", async () => {
@@ -463,7 +576,7 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
   it("deactivates and then reactivates a job worker via isActive", async () => {
     const deactivate = await app.request(
       `/api/job-workers/${jobWorkerId}`,
-      jsonRequest(managerCookie, "PATCH", { isActive: false })
+      jsonRequest(managerCookie, "PATCH", { isActive: false }),
     );
     expect(deactivate.status).toBe(200);
     expect(((await deactivate.json()) as JobWorkerBody).isActive).toBe(false);
@@ -476,7 +589,7 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
 
     const reactivate = await app.request(
       `/api/job-workers/${jobWorkerId}`,
-      jsonRequest(managerCookie, "PATCH", { isActive: true })
+      jsonRequest(managerCookie, "PATCH", { isActive: true }),
     );
     expect(reactivate.status).toBe(200);
     const reactivated = (await reactivate.json()) as JobWorkerBody;
@@ -497,7 +610,10 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
     });
     expect(res.status).toBe(404);
 
-    const [stillThere] = await db.select().from(jobWorkers).where(eq(jobWorkers.id, jobWorkerId));
+    const [stillThere] = await db
+      .select()
+      .from(jobWorkers)
+      .where(eq(jobWorkers.id, jobWorkerId));
     expect(stillThere).toBeDefined();
   });
 
@@ -505,7 +621,12 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
     const entries = await db
       .select()
       .from(auditLogs)
-      .where(and(eq(auditLogs.entityType, "job_worker"), eq(auditLogs.entityId, jobWorkerId)));
+      .where(
+        and(
+          eq(auditLogs.entityType, "job_worker"),
+          eq(auditLogs.entityId, jobWorkerId),
+        ),
+      );
 
     expect(entries.map((entry) => entry.action).sort()).toEqual([
       "job_worker.activated",
@@ -515,18 +636,24 @@ describe.skipIf(!dbAvailable)("job worker master integration", () => {
     ]);
     expect(entries.every((entry) => entry.userId === managerId)).toBe(true);
 
-    const created = entries.find((entry) => entry.action === "job_worker.created");
+    const created = entries.find(
+      (entry) => entry.action === "job_worker.created",
+    );
     expect(created?.newValue).toEqual({
       code: `${CODE_PREFIX}-STW`,
       name: "Stitchwell Works",
-      process: PROCESS,
+      processId: PROCESS,
     });
 
-    const deactivated = entries.find((entry) => entry.action === "job_worker.deactivated");
+    const deactivated = entries.find(
+      (entry) => entry.action === "job_worker.deactivated",
+    );
     expect(deactivated?.oldValue).toEqual({ isActive: true });
     expect(deactivated?.newValue).toEqual({ isActive: false });
 
-    const activated = entries.find((entry) => entry.action === "job_worker.activated");
+    const activated = entries.find(
+      (entry) => entry.action === "job_worker.activated",
+    );
     expect(activated?.oldValue).toEqual({ isActive: false });
     expect(activated?.newValue).toEqual({ isActive: true });
   });
