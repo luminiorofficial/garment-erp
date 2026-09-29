@@ -1,14 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ApiClientError } from "@/lib/api";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { FormField } from "@/components/common/form-field";
+import { errorMessage } from "@/lib/api";
 import { login } from "@/features/auth/api";
 import { useAuth } from "@/providers/auth-provider";
 
-export default function LoginPage() {
-  const router = useRouter();
+function LoginForm() {
   const { refreshUser } = useAuth();
+  const expired = useSearchParams().get("reason") === "expired";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -16,60 +21,81 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSubmitting) return;
     setError(null);
     setIsSubmitting(true);
 
     try {
       await login({ email, password });
+      // GuestGate redirects once /me reports the new session.
       await refreshUser();
-      router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Login failed");
-    } finally {
+      setError(errorMessage(err, "Sign in failed"));
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-black/10 bg-white p-8 dark:border-white/10 dark:bg-zinc-950"
-      >
-        <h1 className="text-xl font-semibold text-black dark:text-white">Sign in</h1>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+      {expired && !error && (
+        <Alert>
+          <AlertDescription>Your session has expired. Please sign in again.</AlertDescription>
+        </Alert>
+      )}
 
-        <label className="flex flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
-          Email
-          <input
+      <FormField label="Email" required>
+        {(control) => (
+          <Input
+            {...control}
             type="email"
+            autoComplete="username"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded border border-black/10 px-3 py-2 dark:border-white/10 dark:bg-black"
           />
-        </label>
+        )}
+      </FormField>
 
-        <label className="flex flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
-          Password
-          <input
+      <FormField label="Password" required>
+        {(control) => (
+          <Input
+            {...control}
             type="password"
+            autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded border border-black/10 px-3 py-2 dark:border-white/10 dark:bg-black"
           />
-        </label>
+        )}
+      </FormField>
 
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded bg-black px-4 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          {isSubmitting ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+      <Button type="submit" disabled={isSubmitting || !email || !password}>
+        {isSubmitting ? "Signing in…" : "Sign in"}
+      </Button>
+    </form>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">Garment ERP</CardTitle>
+          <CardDescription>Sign in to continue</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense>
+            <LoginForm />
+          </Suspense>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -123,3 +123,11 @@ after `db:generate`, check that a new journal entry's `when` is greater than
 the previous entry's.
 
 See [docs/decisions](decisions/) for the reasoning behind the major choices.
+
+## Frontend structure (`apps/web`)
+
+- `src/app/(app)/…` — authenticated ERP routes. `(app)/layout.tsx` wraps them in `AuthGate` + `AppShell`; `/login` is wrapped in `GuestGate`. The session cookie belongs to the API origin, so gating is client-side (no Next proxy); the API still rejects every unauthenticated or unauthorised request.
+- `src/features/<master>/` — `api.ts` (only place that calls `apiFetch`), `queries.ts` (TanStack Query keys/hooks/mutations), forms and pages. Forms validate with the create schemas from `@garment-erp/validation`.
+- `src/components/ui` — shadcn/ui (Base UI flavour). `src/components/common` — shared master-list/form presentation. `src/components/layout` — shell, nav (`nav-config.ts` is the single permission-aware navigation source).
+- The workspace packages import siblings as `./x.js` (required by `apps/api`'s NodeNext resolution). Turbopack cannot map that to `.ts`, so `apps/web` builds/dev-serves with `--webpack` and `resolve.extensionAlias` in `next.config.ts`.
+- List endpoints return `{ items, page, pageSize }` with no total; the UI assumes a next page exists when the current one is full.
