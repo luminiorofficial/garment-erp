@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut, User } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { ChevronDown, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,12 +9,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/providers/auth-provider";
-import { cn } from "@/lib/utils";
 
 export function UserMenu() {
   const { user, roles, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   if (!user) return null;
+
+  const initials = `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase();
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -30,12 +30,23 @@ export function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Account menu"
-        className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
+        className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring aria-expanded:bg-accent"
       >
-        <User aria-hidden />
-        <span className="hidden max-w-40 truncate sm:inline">
-          {user.firstName} {user.lastName}
+        <span
+          aria-hidden
+          className="flex size-8 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-deep ring-1 ring-brand/15 dark:text-foreground"
+        >
+          {initials}
         </span>
+        <span className="hidden text-left leading-tight md:block">
+          <span className="block max-w-36 truncate text-[0.8rem] font-medium">
+            {user.firstName} {user.lastName}
+          </span>
+          <span className="block max-w-36 truncate text-[0.7rem] text-muted-foreground">
+            {roles[0] ?? "No role"}
+          </span>
+        </span>
+        <ChevronDown aria-hidden className="hidden size-3.5 text-muted-foreground md:block" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <div className="px-2 py-1.5 text-sm">

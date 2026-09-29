@@ -1,9 +1,24 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  Building2,
+  Handshake,
+  Package,
+  Palette,
+  Ruler,
+  Scale,
+  ShieldCheck,
+  Shirt,
+  Truck,
+  Users,
+  Workflow,
+} from "lucide-react";
 import { PermissionCode } from "@garment-erp/shared";
 
 export interface NavItem {
   label: string;
   href: string;
   permission: PermissionCode;
+  icon: LucideIcon;
   /** Screen not built yet: shown (to permitted users) as a disabled entry. */
   comingSoon?: boolean;
 }
@@ -17,23 +32,21 @@ export interface NavGroup {
 // signed-in user lands there.
 export const DASHBOARD_HREF = "/dashboard";
 
+export const MASTER_DATA_GROUP = "Master Data";
+
 export const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Masters",
+    label: MASTER_DATA_GROUP,
     items: [
-      { label: "Customers", href: "/masters/customers", permission: PermissionCode.CUSTOMERS_VIEW },
-      { label: "Suppliers", href: "/masters/suppliers", permission: PermissionCode.SUPPLIERS_VIEW },
-      {
-        label: "Job Workers",
-        href: "/masters/job-workers",
-        permission: PermissionCode.JOB_WORKERS_VIEW,
-      },
-      { label: "Products", href: "/masters/products", permission: PermissionCode.PRODUCTS_VIEW },
-      { label: "Styles", href: "/masters/styles", permission: PermissionCode.STYLES_VIEW },
-      { label: "Sizes", href: "/masters/sizes", permission: PermissionCode.SIZES_VIEW },
-      { label: "Colors", href: "/masters/colors", permission: PermissionCode.COLORS_VIEW },
-      { label: "Processes", href: "/masters/processes", permission: PermissionCode.PROCESSES_VIEW },
-      { label: "Units", href: "/masters/units", permission: PermissionCode.UNITS_VIEW },
+      { label: "Customers", href: "/masters/customers", permission: PermissionCode.CUSTOMERS_VIEW, icon: Building2 },
+      { label: "Suppliers", href: "/masters/suppliers", permission: PermissionCode.SUPPLIERS_VIEW, icon: Truck },
+      { label: "Job Workers", href: "/masters/job-workers", permission: PermissionCode.JOB_WORKERS_VIEW, icon: Handshake },
+      { label: "Products", href: "/masters/products", permission: PermissionCode.PRODUCTS_VIEW, icon: Package },
+      { label: "Styles", href: "/masters/styles", permission: PermissionCode.STYLES_VIEW, icon: Shirt },
+      { label: "Sizes", href: "/masters/sizes", permission: PermissionCode.SIZES_VIEW, icon: Ruler },
+      { label: "Colors", href: "/masters/colors", permission: PermissionCode.COLORS_VIEW, icon: Palette },
+      { label: "Processes", href: "/masters/processes", permission: PermissionCode.PROCESSES_VIEW, icon: Workflow },
+      { label: "Units", href: "/masters/units", permission: PermissionCode.UNITS_VIEW, icon: Scale },
     ],
   },
   {
@@ -43,12 +56,14 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Users",
         href: "/administration/users",
         permission: PermissionCode.USERS_VIEW,
+        icon: Users,
         comingSoon: true,
       },
       {
         label: "Roles",
         href: "/administration/roles",
         permission: PermissionCode.ROLES_VIEW,
+        icon: ShieldCheck,
         comingSoon: true,
       },
     ],

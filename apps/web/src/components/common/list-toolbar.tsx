@@ -24,7 +24,7 @@ export function ListToolbar({
   children,
 }: ListToolbarProps) {
   return (
-    <div className="flex flex-col gap-2 border-b p-3 sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-2 border-b bg-muted/30 p-3 sm:flex-row sm:items-center">
       <div className="relative flex-1 sm:max-w-sm">
         <Search
           aria-hidden

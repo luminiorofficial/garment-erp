@@ -15,7 +15,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
-      <Inbox aria-hidden className="size-8 text-muted-foreground" />
+      <span className="flex size-12 items-center justify-center rounded-full bg-brand-soft text-brand ring-1 ring-brand/10"><Inbox aria-hidden className="size-5" /></span>
       <p className="font-medium">{title}</p>
       {description && <p className="max-w-sm text-sm text-muted-foreground">{description}</p>}
       {action}
@@ -35,7 +35,7 @@ export function ErrorState({
 }) {
   return (
     <div role="alert" className="flex flex-col items-center gap-2 px-4 py-12 text-center">
-      <AlertCircle aria-hidden className="size-8 text-destructive" />
+      <span className="flex size-12 items-center justify-center rounded-full bg-destructive-soft text-destructive"><AlertCircle aria-hidden className="size-5" /></span>
       <p className="font-medium">{title}</p>
       <p className="max-w-sm text-sm text-muted-foreground">{errorMessage(error)}</p>
       {onRetry && (
@@ -50,7 +50,7 @@ export function ErrorState({
 export function NoAccessState({ what }: { what: string }) {
   return (
     <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
-      <Lock aria-hidden className="size-8 text-muted-foreground" />
+      <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground"><Lock aria-hidden className="size-5" /></span>
       <p className="font-medium">You don&apos;t have access to {what}</p>
       <p className="max-w-sm text-sm text-muted-foreground">
         Ask an administrator to grant your role the required permission.

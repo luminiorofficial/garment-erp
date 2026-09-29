@@ -36,7 +36,7 @@ export function Pagination({
   const last = (page - 1) * pageSize + itemCount;
 
   return (
-    <div className="flex flex-col gap-2 border-t px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 border-t bg-muted/30 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
       <p className="text-muted-foreground" aria-live="polite">
         {itemCount === 0 ? "No rows on this page" : `Showing ${first}–${last}`}
         {isFetching && " · updating…"}

@@ -9,7 +9,7 @@ describe("visibleNavGroups", () => {
 
   it("shows only the entries the user may view, and drops empty groups", () => {
     const groups = visibleNavGroups([PermissionCode.CUSTOMERS_VIEW, PermissionCode.UNITS_VIEW]);
-    expect(groups.map((g) => g.label)).toEqual(["Masters"]);
+    expect(groups.map((g) => g.label)).toEqual(["Master Data"]);
     expect(groups[0]?.items.map((i) => i.label)).toEqual(["Customers", "Units"]);
   });
 
