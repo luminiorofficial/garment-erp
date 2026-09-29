@@ -64,9 +64,15 @@ Status (see [docs/architecture.md](docs/architecture.md)):
 | Customer Master                                        | ✅ implemented                      |
 | Supplier Master                                        | ✅ implemented, PostgreSQL verified |
 | Job Worker Master                                      | ✅ implemented, PostgreSQL verified |
+| Process Master, Unit Master                            | ✅ implemented, PostgreSQL verified |
+| Size Master, Color Master                              | ✅ implemented, PostgreSQL verified |
+| Product Master, Style Master                           | ✅ implemented, PostgreSQL verified |
+| Style Versions (immutable) + allowed sizes/colors      | ✅ implemented, PostgreSQL verified |
+| Web app shell + UI for all masters above               | ✅ implemented                      |
 | Job Work operations (orders, issue/receipt, reconciliation) | ❌ not implemented             |
-| Other masters (process, unit, item/fabric, style, ...) | ❌ not implemented                  |
-| Orders                                                 | ❌ not implemented                  |
+| Item/fabric masters, BOM                               | ❌ not implemented                  |
+| Customer Orders                                        | ❌ not implemented (next slice)     |
+| Sampling / approvals                                   | ❌ not implemented                  |
 | Inventory                                              | ❌ not implemented                  |
 | Production (planning, cutting, WIP, QC, packing, dispatch) | ❌ not implemented              |
 

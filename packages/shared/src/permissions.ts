@@ -40,6 +40,25 @@ export const PermissionCode = {
   UNITS_VIEW: "units.view",
   UNITS_CREATE: "units.create",
   UNITS_EDIT: "units.edit",
+
+  SIZES_VIEW: "sizes.view",
+  SIZES_CREATE: "sizes.create",
+  SIZES_EDIT: "sizes.edit",
+
+  COLORS_VIEW: "colors.view",
+  COLORS_CREATE: "colors.create",
+  COLORS_EDIT: "colors.edit",
+
+  PRODUCTS_VIEW: "products.view",
+  PRODUCTS_CREATE: "products.create",
+  PRODUCTS_EDIT: "products.edit",
+
+  // styles.edit also covers creating style versions and changing a style's
+  // allowed sizes/colors: neither is an authorisation distinction worth a
+  // separate permission yet (approval gets its own when Sampling exists).
+  STYLES_VIEW: "styles.view",
+  STYLES_CREATE: "styles.create",
+  STYLES_EDIT: "styles.edit",
 } as const;
 
 export type PermissionCode =

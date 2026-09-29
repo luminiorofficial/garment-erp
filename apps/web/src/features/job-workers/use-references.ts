@@ -1,6 +1,6 @@
 import { PermissionCode } from "@garment-erp/shared";
 import { usePermission } from "@/hooks/use-permission";
-import type { SelectOption } from "@/components/common/simple-select";
+import { labelFor, referenceOptions } from "@/lib/reference-options";
 import { useProcessLookup } from "@/features/processes/queries";
 import type { Process } from "@/features/processes/types";
 import { useUnitLookup } from "@/features/units/queries";
@@ -14,28 +14,6 @@ export function processLabel(process: Process) {
 
 export function unitLabel(unit: Unit) {
   return unit.symbol ? `${unit.name} (${unit.symbol})` : unit.name;
-}
-
-/**
- * Selectable options for an assignment: active masters, plus the value the
- * record already holds even if that master has since been deactivated (so an
- * unrelated edit does not silently drop a historical reference).
- */
-function optionsFor<T extends { id: string; isActive: boolean }>(
-  items: T[] | undefined,
-  currentId: string | null | undefined,
-  label: (item: T) => string
-): SelectOption[] {
-  const options: SelectOption[] = [];
-  for (const item of items ?? []) {
-    if (item.isActive || item.id === currentId) {
-      options.push({
-        value: item.id,
-        label: item.isActive ? label(item) : `${label(item)} (inactive)`,
-      });
-    }
-  }
-  return options;
 }
 
 /**
@@ -55,18 +33,11 @@ export function useJobWorkerReferences() {
     processes,
     units,
     processOptions: (currentId?: string | null) =>
-      optionsFor(processes.data, currentId, processLabel),
-    unitOptions: (currentId?: string | null) => optionsFor(units.data, currentId, unitLabel),
-    processName: (id: string | null) => {
-      if (!id) return null;
-      const found = processes.data?.find((p) => p.id === id);
-      return found ? processLabel(found) : null;
-    },
-    unitName: (id: string | null) => {
-      if (!id) return null;
-      const found = units.data?.find((u) => u.id === id);
-      return found ? unitLabel(found) : null;
-    },
+      referenceOptions(processes.data, currentId, processLabel),
+    unitOptions: (currentId?: string | null) =>
+      referenceOptions(units.data, currentId, unitLabel),
+    processName: (id: string | null) => labelFor(processes.data, id, processLabel),
+    unitName: (id: string | null) => labelFor(units.data, id, unitLabel),
     unitSymbol: (id: string | null) => {
       if (!id) return null;
       const found = units.data?.find((u) => u.id === id);

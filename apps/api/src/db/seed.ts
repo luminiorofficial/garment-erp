@@ -82,6 +82,20 @@ const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   [PermissionCode.UNITS_CREATE]: "Create units",
   [PermissionCode.UNITS_EDIT]: "Edit units",
 
+  [PermissionCode.SIZES_VIEW]: "View sizes",
+  [PermissionCode.SIZES_CREATE]: "Create sizes",
+  [PermissionCode.SIZES_EDIT]: "Edit/deactivate sizes",
+  [PermissionCode.COLORS_VIEW]: "View colors",
+  [PermissionCode.COLORS_CREATE]: "Create colors",
+  [PermissionCode.COLORS_EDIT]: "Edit/deactivate colors",
+  [PermissionCode.PRODUCTS_VIEW]: "View products",
+  [PermissionCode.PRODUCTS_CREATE]: "Create products",
+  [PermissionCode.PRODUCTS_EDIT]: "Edit/deactivate products",
+  [PermissionCode.STYLES_VIEW]: "View styles and their versions",
+  [PermissionCode.STYLES_CREATE]: "Create styles",
+  [PermissionCode.STYLES_EDIT]:
+    "Edit/deactivate styles, change allowed sizes/colors and create style versions",
+
   [PermissionCode.PROCESSES_VIEW]: "View processes",
   [PermissionCode.PROCESSES_CREATE]: "Create processes",
   [PermissionCode.PROCESSES_EDIT]: "Edit processes",

@@ -20,6 +20,7 @@ export const customerKeys = {
   all: ["customers"] as const,
   lists: () => [...customerKeys.all, "list"] as const,
   list: (params: ListParams) => [...customerKeys.lists(), params] as const,
+  lookup: () => [...customerKeys.all, "lookup"] as const,
   detail: (id: string) => [...customerKeys.all, "detail", id] as const,
   contacts: (id: string) => [...customerKeys.all, "detail", id, "contacts"] as const,
 };
@@ -29,6 +30,20 @@ export function useCustomers(params: ListParams) {
     queryKey: customerKeys.list(params),
     queryFn: () => listCustomers(params),
     placeholderData: keepPreviousData,
+  });
+}
+
+// Largest page the API allows (paginationQuerySchema).
+const LOOKUP_PAGE_SIZE = 200;
+
+/** All customers (active and inactive) for selectors and labels on other masters. */
+export function useCustomerLookup(enabled: boolean) {
+  return useQuery({
+    queryKey: customerKeys.lookup(),
+    queryFn: () => listCustomers({ page: 1, pageSize: LOOKUP_PAGE_SIZE }),
+    select: (data) => data.items,
+    enabled,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -48,7 +63,11 @@ export function useCreateCustomer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateCustomerInput) => createCustomer(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: customerKeys.lists() }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: customerKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: customerKeys.lookup() }),
+      ]),
   });
 }
 
@@ -59,7 +78,10 @@ export function useUpdateCustomer() {
       updateCustomer(id, data),
     onSuccess: (customer) => {
       queryClient.setQueryData(customerKeys.detail(customer.id), customer);
-      return queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: customerKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: customerKeys.lookup() }),
+      ]);
     },
   });
 }

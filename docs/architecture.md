@@ -113,8 +113,47 @@ Deliberate interim choices, documented in
 Process and Unit masters are implemented with CRUD (deactivation instead of
 deletion), permissions, audit logging, and idempotent baseline seed data.
 
-No other ERP modules (other masters, orders, inventory, BOM, purchase orders,
-production, QC, packing, ...) exist yet.
+## Product & style foundation
+
+Migration `0005_product_style_masters` adds `sizes`, `colors`, `products`,
+`styles`, `style_versions`, `style_sizes` and `style_colors`. All masters use
+UUID keys, unique uppercase codes, `is_active` (no DELETE routes), audit columns
+and audit-log entries (`<entity>.created|updated|activated|deactivated`).
+
+- **Size**: code, name, integer `sequence` (ordering; deliberately not unique,
+  CHECK >= 0). Garment measurement specs are not modelled: they belong with
+  style versions / sampling, and a measurement engine now would be premature.
+- **Color**: code, name, optional `reference` (e.g. Pantone) and `hex_value`
+  (CHECK `#RRGGBB`). A commercial/design reference and display swatch only, not
+  a shade/lot.
+- **Product**: general garment identity (code, name, required free-text
+  `category`, description). No stock, BOM, cost or production data.
+- **Style**: the manufacturable, customer-facing definition. Required
+  `product_id`, optional `customer_id` (buyer-specific; null = house style),
+  unique style number in `code`. Category lives on Product only. New or changed
+  product/customer/size/color assignments must be active (422 otherwise);
+  unchanged references to since-deactivated masters are kept and stay editable.
+- **Style versions**: append-only `style_versions` (`version_number` unique per
+  style, `specification`, `change_summary`, `created_by`). Created under a row
+  lock on the style so numbers are sequential (V1, V2, ...); there is no update
+  or delete endpoint, so history cannot be overwritten. Inactive styles cannot
+  gain versions. A version is a definition snapshot, not an approval or a BOM.
+- **Allowed sizes/colors**: normalised junction tables (`style_sizes`,
+  `style_colors`, composite PK, FKs), sent as full sets in create/update
+  (`sizeIds`/`colorIds`; omitted = unchanged). Changes are recorded in the
+  style's audit entry. Future order size/colour breakdowns validate against them.
+- **Permissions**: `sizes|colors|products|styles` x `view|create|edit`.
+  `styles.edit` also covers creating versions and changing allowed
+  sizes/colors; a separate approval permission arrives with Sampling. Seeded
+  idempotently; only Owner receives them automatically.
+
+Endpoints: `/api/sizes`, `/api/colors`, `/api/products`, `/api/styles` (GET list,
+POST, GET/:id, PATCH/:id) plus `GET|POST /api/styles/:id/versions` and
+`GET /api/styles/:id/versions/:versionId`. Style lists filter by search,
+isActive, productId and customerId.
+
+No other ERP modules (orders, sampling, BOM, item masters, inventory, purchase
+orders, production, QC, packing, dispatch, ...) exist yet.
 
 Migration note: `0002_suppliers` has a hand-set journal timestamp
 (`when: 1790600000000`), and `0003_job_workers` was bumped above it. Drizzle

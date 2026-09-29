@@ -1,4 +1,8 @@
 import { unitsRoute } from "./modules/units/units.routes.js";
+import { sizesRoute } from "./modules/sizes/sizes.routes.js";
+import { colorsRoute } from "./modules/colors/colors.routes.js";
+import { productsRoute } from "./modules/products/products.routes.js";
+import { stylesRoute } from "./modules/styles/styles.routes.js";
 import { processesRoute } from "./modules/processes/processes.routes.js";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -39,3 +43,7 @@ app.route("/api/suppliers", suppliersRoute);
 app.route("/api/job-workers", jobWorkersRoute);
 app.route("/api/processes", processesRoute);
 app.route("/api/units", unitsRoute);
+app.route("/api/sizes", sizesRoute);
+app.route("/api/colors", colorsRoute);
+app.route("/api/products", productsRoute);
+app.route("/api/styles", stylesRoute);

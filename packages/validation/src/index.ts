@@ -5,3 +5,7 @@ export * from "./suppliers.js";
 export * from "./job-workers.js";
 export * from "./processes.js";
 export * from "./units.js";
+export * from "./sizes.js";
+export * from "./colors.js";
+export * from "./products.js";
+export * from "./styles.js";
